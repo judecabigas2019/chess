@@ -13,7 +13,7 @@ if (!$fen) {
     exit;
 }
 
-$skill = max(0, min(20, intval($skill))); // Clamp between 0-20
+$skill = 20; // Clamp between 0-20
 $movetime = max(200, min(10000, intval($movetime))); // Clamp between 200ms-10s
 
 // === Setup process to run Stockfish ===
