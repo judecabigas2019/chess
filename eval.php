@@ -1,4 +1,7 @@
 <?php
+header("Access-Control-Allow-Origin: https://www.chess.com");
+header("Content-Type: application/json");
+
 $fen = $_GET['fen'] ?? null;
 
 if (!$fen) {
