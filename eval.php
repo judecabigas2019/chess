@@ -2,21 +2,16 @@
 header("Access-Control-Allow-Origin: https://www.chess.com");
 header("Content-Type: application/json");
 
-// === Get FEN from query ===
 $fen = $_GET['fen'] ?? null;
-$skill = $_GET['skill'] ?? 10; // Skill level: 0 (worst) - 20 (best)
-$movetime = $_GET['time'] ?? 1500; // in milliseconds (default: 1.5 sec)
+$depth = $_GET['depth'] ?? 20;
 
-// === Validate input ===
 if (!$fen) {
     echo json_encode(['error' => 'Missing FEN']);
     exit;
 }
 
-$skill = 20; // Clamp between 0-20
-$movetime = max(200, min(10000, intval($movetime))); // Clamp between 200ms-10s
+$depth = max(8, min(30, intval($depth))); // Clamp depth to reasonable range
 
-// === Setup process to run Stockfish ===
 $cmd = './stockfish';
 $descriptorspec = [
     0 => ["pipe", "r"],  // stdin
@@ -31,33 +26,39 @@ if (!is_resource($process)) {
     exit;
 }
 
-// === Feed commands to Stockfish ===
+// Send commands to Stockfish
 fwrite($pipes[0], "uci\n");
-fwrite($pipes[0], "setoption name Skill Level value $skill\n");
 fwrite($pipes[0], "isready\n");
+fwrite($pipes[0], "ucinewgame\n");
 fwrite($pipes[0], "position fen $fen\n");
-fwrite($pipes[0], "go movetime $movetime\n");
+fwrite($pipes[0], "go depth $depth\n");
 
-// Wait briefly for Stockfish to calculate
-usleep($movetime * 1000); // Convert to microseconds
+// Read until 'bestmove' appears
+$bestMove = null;
+$output = '';
 
-fwrite($pipes[0], "quit\n");
+while ($line = fgets($pipes[1])) {
+    $output .= $line;
+    if (strpos($line, 'bestmove') === 0) {
+        if (preg_match('/bestmove\s+(\w+)/', $line, $matches)) {
+            $bestMove = $matches[1];
+        }
+        break;
+    }
+}
 
-// === Capture output ===
-$output = stream_get_contents($pipes[1]);
-
+// Clean up
 fclose($pipes[0]);
 fclose($pipes[1]);
 fclose($pipes[2]);
 proc_close($process);
 
-// === Parse best move from Stockfish output ===
-if (preg_match('/bestmove\s+(\w+)/', $output, $matches)) {
+// Return JSON
+if ($bestMove) {
     echo json_encode([
-        'best_move' => $matches[1],
-        'skill_level' => $skill,
-        'movetime_ms' => $movetime,
-        'raw' => $output // optional, remove if you want clean JSON
+        'best_move' => $bestMove,
+        'depth' => $depth,
+        'raw' => $output // optional: comment out if not needed
     ]);
 } else {
     echo json_encode([
