@@ -1,13 +1,11 @@
 FROM php:8.1-cli
 
-# Copy files
+# Copy everything to /app
 COPY . /app
 WORKDIR /app
 
-# Install basic dependencies
-RUN apt-get update && apt-get install -y \
-    procps \
-    && chmod +x /app/stockfish
+# Make the Stockfish binary executable
+RUN chmod +x /app/stockfish
 
-# Start PHP dev server
-CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
+# Start PHP's built-in web server on port 10000
+CMD ["php", "-S", "0.0.0.0:10000", "-t", "."]
